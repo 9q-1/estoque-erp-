@@ -1,0 +1,99 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  color-scheme: light;
+}
+
+* {
+  -webkit-tap-highlight-color: transparent;
+}
+
+html {
+  scrollbar-color: #C7D2CB transparent;
+  scrollbar-width: thin;
+}
+
+body {
+  @apply bg-base-50 text-base-950 antialiased;
+  background-image:
+    radial-gradient(circle at 0% 0%, rgba(21,122,66,0.045), transparent 40%),
+    radial-gradient(circle at 100% 0%, rgba(15,118,110,0.035), transparent 40%);
+  background-attachment: fixed;
+}
+
+/* Foco visível sempre — obrigatório em ambiente de touchscreen com teclado físico eventual */
+:focus-visible {
+  outline: 2px solid #157A42;
+  outline-offset: 2px;
+}
+
+/* Números tabulares em todo o sistema: colunas de saldo/contagem alinham perfeitamente */
+.tabular {
+  font-variant-numeric: tabular-nums;
+}
+
+/* Scrollbar refinada (webkit) para o padrão de software corporativo */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background-color: #C7D2CB;
+  border-radius: 999px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background-color: #AAB8AF;
+}
+
+/* Seleção de texto com a cor de marca */
+::selection {
+  background-color: rgba(21, 122, 66, 0.25);
+  color: #152019;
+}
+
+/* Efeito "shimmer" usado nos estados de carregamento (skeleton) */
+.skeleton {
+  background: linear-gradient(90deg, #EBEFEC 0%, #F5F7F6 50%, #EBEFEC 100%);
+  background-size: 800px 100%;
+  @apply animate-shimmer rounded-md;
+}
+
+/* Remove a aparência nativa que o Safari/iOS aplica em inputs de texto e senha
+   (cantos, sombra e fundo próprios do sistema), garantindo que o campo sempre
+   respeite o tamanho e a cor definidos pelo tema, inclusive dentro do PWA instalado. */
+input[type='text'],
+input[type='password'],
+input[type='email'],
+input[type='search'],
+input[type='number'] {
+  -webkit-appearance: none;
+  appearance: none;
+  caret-color: #157A42;
+}
+
+/* Utilitário para entrada suave de páginas/painéis */
+.animate-in {
+  @apply animate-fade-in;
+}
+
+/* Corrige o autofill do navegador (Safari/Chrome) nos campos de usuário e senha:
+   sem isso, ao preencher automaticamente, o navegador aplica um fundo
+   branco/amarelo próprio que pode destoar do tema, quebrando o visual do campo
+   (aparece uma "barra" com aparência diferente do restante do input). O truque
+   do box-shadow interno força a cor de fundo do próprio tema, e o delay enorme
+   na transição evita o "flash" de cor errada antes da correção ser aplicada. */
+input:-webkit-autofill,
+input:-webkit-autofill:hover,
+input:-webkit-autofill:focus,
+input:-webkit-autofill:active {
+  -webkit-text-fill-color: #152019;
+  caret-color: #152019;
+  box-shadow: 0 0 0 1000px #FFFFFF inset;
+  -webkit-box-shadow: 0 0 0 1000px #FFFFFF inset;
+  transition: background-color 9999s ease-in-out 0s;
+}

@@ -1,0 +1,139 @@
+// Banco: PostgreSQL (necessário para hospedar em serviços como a Vercel, que não
+// permitem gravar arquivos persistentes como o SQLite exige).
+// Gratuito: crie um banco em neon.tech e cole a connection string em DATABASE_URL.
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum PerfilUsuario {
+  ADMINISTRADOR
+  GERENTE
+  ENCARREGADO
+  OPERADOR
+}
+
+enum TipoMovimento {
+  AJUSTE_CONTAGEM // +0,5 / -1 etc, feito na Tela de Contagem
+  ENTRADA
+  SAIDA
+  CORRECAO_MANUAL // edição direta de saldo por supervisor/admin
+}
+
+model Usuario {
+  id           String   @id @default(cuid())
+  nome         String
+  login        String   @unique
+  senhaHash    String
+  perfil       PerfilUsuario @default(OPERADOR)
+  ativo        Boolean  @default(true)
+  criadoEm     DateTime @default(now())
+
+  movimentacoes    Movimentacao[]
+  logsAuditoria    LogAuditoria[]
+  sessoesInventario SessaoInventario[]
+
+  @@map("usuarios")
+}
+
+model Pedido {
+  id          String   @id @default(cuid())
+  nome        String   @unique
+  descricao   String?
+  ativo       Boolean  @default(true)
+  criadoEm    DateTime @default(now())
+
+  produtos    Produto[]
+
+  @@map("pedidos")
+}
+
+model Produto {
+  id            String   @id @default(cuid())
+  codigo        String   @unique
+  descricao     String
+  unidade       String   // UN, KG, CX, L, etc.
+  saldo         Float    @default(0)
+  contagem      Float?   // preenchido durante a conferência; null = ainda não conferido
+  localizacao   String?
+  categoria     String?
+  observacoes   String?
+  codigoBarras  String?  @unique
+  estoqueMinimo Float?   // usado para o indicador "estoque crítico" no dashboard
+  custoUnitario Float?   // custo médio unitário; usado para o KPI "Valor do estoque" (saldo × custoUnitario)
+  conferidoEm   DateTime?
+  pedidoId      String?
+  pedido        Pedido?  @relation(fields: [pedidoId], references: [id])
+  fatorConversao   Float?  // multiplicador aplicado ao saldo para exibir na unidade secundária (ex: m³ por caixa)
+  unidadeConversao String? // rótulo da unidade secundária (ex: "m³")
+  criadoEm      DateTime @default(now())
+  atualizadoEm  DateTime @updatedAt
+
+  movimentacoes Movimentacao[]
+  logsAuditoria LogAuditoria[]
+
+  @@index([descricao])
+  @@index([categoria])
+  @@index([pedidoId])
+  @@map("produtos")
+}
+
+// Histórico de movimentações: nunca é apagado (sem cascade de delete, sem update de valores passados).
+model Movimentacao {
+  id            String        @id @default(cuid())
+  produtoId     String
+  produto       Produto       @relation(fields: [produtoId], references: [id])
+  usuarioId     String
+  usuario       Usuario       @relation(fields: [usuarioId], references: [id])
+  tipo          TipoMovimento
+  valor         Float         // o delta aplicado, ex: -0.5, +1
+  saldoAnterior Float
+  saldoNovo     Float
+  ip            String?
+  sessaoInventarioId String?
+  sessaoInventario   SessaoInventario? @relation(fields: [sessaoInventarioId], references: [id])
+  criadoEm      DateTime      @default(now())
+
+  @@index([produtoId])
+  @@index([usuarioId])
+  @@index([criadoEm])
+  @@map("movimentacoes")
+}
+
+// Auditoria genérica: qualquer alteração de cadastro (não movimentação de saldo) passa por aqui.
+model LogAuditoria {
+  id           String   @id @default(cuid())
+  usuarioId    String
+  usuario      Usuario  @relation(fields: [usuarioId], references: [id])
+  produtoId    String?
+  produto      Produto? @relation(fields: [produtoId], references: [id])
+  acao         String   // ex: "PRODUTO_CRIADO", "PRODUTO_EDITADO", "USUARIO_CRIADO"
+  campoAlterado String?
+  valorAntigo  String?
+  valorNovo    String?
+  criadoEm     DateTime @default(now())
+
+  @@index([produtoId])
+  @@index([criadoEm])
+  @@map("logs_auditoria")
+}
+
+// Modo Inventário: agrupa as movimentações de uma sessão de conferência para gerar
+// o relatório de fechamento (itens conferidos, divergências, tempo gasto).
+model SessaoInventario {
+  id             String    @id @default(cuid())
+  usuarioId      String
+  usuario        Usuario   @relation(fields: [usuarioId], references: [id])
+  iniciadaEm     DateTime  @default(now())
+  finalizadaEm   DateTime?
+  observacoes    String?
+
+  movimentacoes  Movimentacao[]
+
+  @@map("sessoes_inventario")
+}
